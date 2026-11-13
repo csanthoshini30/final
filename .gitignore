@@ -1,0 +1,84 @@
+# Python environments and local tooling
+.venv/
+**/.venv/
+venv/
+venv312/
+env/
+ENV/
+.python-version
+
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*$py.class
+
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Jupyter and notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Streamlit local secrets and caches
+.streamlit/secrets.toml
+.streamlit/credentials.toml
+.streamlit/cache/
+
+# Temporary and generated files
+*.tmp
+*.temp
+*.log
+temp_*
+logs/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+secrets.toml
+credentials.json
+hf_token*
+*.token
+*.pem
+*.key
+
+# OS and media artifacts not used in deployment
+*.bak
+*.orig
+video.mp4
+Final Review PPT Template.pptx
+
+# Model binaries are hosted in the private Hugging Face model repository.
+# Keep model-loading source files (for example models/hub_loader.py) tracked.
+/models/**/*.pkl
+/models/**/*.h5
+/models/**/*.keras
+/models/**/*.pt
+/models/**/*.pth
+/models/**/*.onnx
+/models/**/*.safetensors
+/models/cache/
+/models/hf_cache/
+/models/.cache/
+**/.cache/huggingface/
+
+# Optional: ignore large local caches if they are generated
+cache/
+
+# Local GitHub / editor metadata
+.github/.keep

@@ -1,0 +1,100 @@
+================================================================================
+SETUP FIX - Binary Wheels (No Compiler Needed)
+Aircraft Predictive Maintenance System
+================================================================================
+
+Your setup failed because it was trying to compile packages from source.
+Solution: Use pre-built binary wheels instead!
+
+I've created new setup scripts that work without a C compiler.
+
+================================================================================
+FOR POWERSHELL USERS (YOU!)
+================================================================================
+
+Since you're using PowerShell, run:
+
+.\setup.ps1
+
+That's it! This will:
+✓ Create virtual environment
+✓ Upgrade pip
+✓ Install all packages as pre-built binaries (NO compilation)
+✓ Complete in 2-3 minutes
+
+================================================================================
+FOR COMMAND PROMPT USERS
+================================================================================
+
+If you prefer Command Prompt, run:
+
+setup_binary.bat
+
+This also uses pre-built binaries.
+
+================================================================================
+WHAT CHANGED
+================================================================================
+
+BEFORE (Caused errors):
+- requirements.txt had exact versions: pandas==2.1.3, numpy==1.26.2
+- Pip tried to compile from source
+- Needed Visual Studio build tools
+- Failed without compiler
+
+AFTER (Works without compiler):
+- requirements.txt now uses flexible versions: pandas>=2.1.0, numpy>=2.0.0
+- Pip uses pre-built binary wheels
+- No C compiler needed
+- Works on any Windows installation
+
+================================================================================
+STEP-BY-STEP FOR POWERSHELL
+================================================================================
+
+You should already be in: D:\final\AircraftPredictiveMaintenance
+
+Just run:
+
+.\setup.ps1
+
+Wait for it to complete (shows "Setup Complete!" message).
+
+That's all!
+
+================================================================================
+IF SETUP.PS1 DOESN'T WORK
+================================================================================
+
+PowerShell execution policy issue?
+
+Try this instead:
+
+powershell -ExecutionPolicy Bypass -File setup.ps1
+
+Or switch to Command Prompt:
+
+setup_binary.bat
+
+================================================================================
+AFTER SETUP COMPLETES
+================================================================================
+
+You're ready for training! Run:
+
+.\venv\Scripts\Activate.ps1
+python training\train_all.py
+streamlit run dashboard\app.py
+
+================================================================================
+QUICK SUMMARY
+================================================================================
+
+OLD METHOD: setup.bat → Failed (needs compiler)
+NEW METHOD: setup.ps1 → Works (uses binary wheels)
+
+Run: .\setup.ps1
+
+That's all you need to do!
+
+================================================================================

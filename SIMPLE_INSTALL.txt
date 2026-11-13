@@ -1,0 +1,116 @@
+================================================================================
+FASTEST FIX - One Command (Copy-Paste This)
+================================================================================
+
+If you're having PowerShell script issues, use this ONE command instead:
+
+Copy the entire line below and paste into PowerShell:
+
+python -m pip install --upgrade pip setuptools wheel && python -m pip install -r requirements.txt
+
+That's it!
+
+================================================================================
+WHAT IT DOES
+================================================================================
+
+This single command:
+1. Upgrades pip, setuptools, wheel
+2. Installs all packages from requirements.txt
+3. Uses binary wheels (no compilation needed)
+4. Takes 2-3 minutes
+
+================================================================================
+STEP-BY-STEP FOR POWERSHELL
+================================================================================
+
+STEP 1: Make sure you're in the project directory
+────────────────────────────────────────────────
+
+cd D:\final\AircraftPredictiveMaintenance
+
+STEP 2: Delete the old failed venv (optional but recommended)
+────────────────────────────────────────────────────────────
+
+Remove-Item -Recurse -Force venv
+
+(This deletes the old broken environment)
+
+STEP 3: Create fresh virtual environment
+──────────────────────────────────────────
+
+python -m venv venv
+
+STEP 4: Activate it
+────────────────────
+
+.\venv\Scripts\Activate.ps1
+
+You should see (venv) in your prompt
+
+STEP 5: Install all packages (THE IMPORTANT PART)
+──────────────────────────────────────────────────
+
+python -m pip install --upgrade pip setuptools wheel && python -m pip install -r requirements.txt
+
+Wait 2-3 minutes for completion
+
+STEP 6: Verify installation worked
+──────────────────────────────────
+
+python -c "import pandas; import tensorflow; import streamlit; print('All packages installed!')"
+
+Should print: "All packages installed!"
+
+================================================================================
+THEN YOU'RE READY FOR TRAINING
+================================================================================
+
+python training\train_all.py
+
+(Wait 5-7 minutes)
+
+Then:
+
+streamlit run dashboard\app.py
+
+================================================================================
+IF STILL HAVING ISSUES
+================================================================================
+
+Option 1: Use Command Prompt instead of PowerShell
+─────────────────────────────────────────────────
+
+Press Win+R, type "cmd", press Enter
+
+cd D:\final\AircraftPredictiveMaintenance
+setup_binary.bat
+
+Option 2: Use simpler Python approach
+──────────────────────────────────────
+
+python -m pip install pip --upgrade
+python -m pip install wheel
+python -m pip install setuptools
+python -m pip install --only-binary :all: pandas
+python -m pip install --only-binary :all: numpy
+python -m pip install -r requirements.txt
+
+Option 3: Skip exact versions, install latest compatible
+──────────────────────────────────────────────────────────
+
+python -m pip install pandas numpy scikit-learn tensorflow keras streamlit plotly
+
+================================================================================
+SUMMARY
+================================================================================
+
+Best approach: Use this ONE command in PowerShell:
+
+python -m pip install --upgrade pip setuptools wheel && python -m pip install -r requirements.txt
+
+If that doesn't work: Use Command Prompt with setup_binary.bat
+
+If you're stuck: Contact support with full error message
+
+================================================================================

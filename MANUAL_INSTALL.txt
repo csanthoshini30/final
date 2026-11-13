@@ -1,0 +1,185 @@
+================================================================================
+SKIP THE SCRIPTS - DO THIS MANUALLY (Guaranteed to Work)
+Aircraft Predictive Maintenance System
+================================================================================
+
+Having issues with PowerShell scripts? That's OK!
+Just run these commands manually. 100% guaranteed to work.
+
+================================================================================
+OPTION 1: POWERSHELL (What You Have Right Now)
+================================================================================
+
+You're already in PowerShell. Just copy-paste these ONE AT A TIME:
+
+STEP 1: Clean up old venv
+────────────────────────
+Remove-Item -Recurse -Force venv
+
+STEP 2: Create new virtual environment
+────────────────────────────────────────
+python -m venv venv
+
+STEP 3: Activate it
+──────────────────
+.\venv\Scripts\Activate.ps1
+
+(You should see (venv) in prompt now)
+
+STEP 4: Upgrade pip
+───────────────────
+python -m pip install --upgrade pip setuptools wheel
+
+STEP 5: Install packages (TAKES 2-3 MINUTES - BE PATIENT!)
+──────────────────────────────────────────────────────────
+python -m pip install -r requirements.txt
+
+STEP 6: Verify it worked
+────────────────────────
+python -c "import pandas; import tensorflow; print('SUCCESS!')"
+
+Should print: SUCCESS!
+
+================================================================================
+OPTION 2: COMMAND PROMPT (Even More Reliable)
+================================================================================
+
+If PowerShell gives you more issues:
+
+1. Close PowerShell
+2. Press Win+R
+3. Type: cmd
+4. Press: Enter
+
+STEP 1: Navigate to project
+────────────────────────────
+cd D:\final\AircraftPredictiveMaintenance
+
+STEP 2: Clean old venv
+──────────────────────
+rmdir /S /Q venv
+
+STEP 3: Create virtual environment
+──────────────────────────────────
+python -m venv venv
+
+STEP 4: Activate it
+───────────────────
+venv\Scripts\activate.bat
+
+STEP 5: Upgrade pip
+───────────────────
+python -m pip install --upgrade pip setuptools wheel
+
+STEP 6: Install packages (2-3 MINUTES)
+──────────────────────────────────────
+python -m pip install -r requirements.txt
+
+STEP 7: Verify
+──────────────
+python -c "import pandas; import tensorflow; print('SUCCESS!')"
+
+================================================================================
+AFTER INSTALLATION WORKS
+================================================================================
+
+You're in the virtual environment (venv activated).
+
+Now you can train the models:
+
+python training\train_all.py
+
+(Wait 5-7 minutes)
+
+Then launch the dashboard:
+
+streamlit run dashboard\app.py
+
+(Browser opens automatically)
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+IF YOU GET AN ERROR:
+
+1. Copy the EXACT error message
+2. Run: python -m pip install --upgrade pip
+3. Retry the installation
+
+IF IT STILL FAILS:
+
+Try installing one package at a time:
+
+python -m pip install pandas
+python -m pip install numpy
+python -m pip install scikit-learn
+python -m pip install tensorflow
+python -m pip install streamlit
+... etc
+
+OR: Just install the essentials first:
+
+python -m pip install pandas numpy scikit-learn streamlit plotly
+
+(Dashboard will work with limited features)
+
+================================================================================
+WHICH OPTION SHOULD YOU USE?
+================================================================================
+
+Start with OPTION 1 (PowerShell - what you have)
+
+If that gives errors, switch to OPTION 2 (Command Prompt)
+
+Command Prompt is usually more reliable for this.
+
+================================================================================
+I'M CONFUSED - JUST TELL ME ONE COMMAND
+================================================================================
+
+In PowerShell (the one you have open now), copy-paste THIS ONE COMMAND:
+
+python -m pip install --upgrade pip setuptools wheel && python -m pip install -r requirements.txt
+
+That's it. Paste, press Enter, wait 2-3 minutes.
+
+================================================================================
+WHAT IF IT SAYS "Permission Denied" OR "Access Is Denied"
+================================================================================
+
+Close PowerShell and Command Prompt completely.
+
+Right-click on PowerShell icon → "Run as Administrator"
+
+Then try again.
+
+================================================================================
+STILL STUCK?
+================================================================================
+
+Let me know:
+
+1. Which option you're trying (PowerShell or Command Prompt)
+2. What the EXACT error message says
+3. Where did you stop (which step)
+
+I can help from there!
+
+================================================================================
+TL;DR (Too Long, Didn't Read)
+================================================================================
+
+Do this:
+
+Remove-Item -Recurse -Force venv
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+python training\train_all.py
+streamlit run dashboard\app.py
+
+Done!
+
+================================================================================

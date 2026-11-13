@@ -1,0 +1,18 @@
+{
+    "hydraulic": {
+        "X_train_shape": [
+            29971,
+            30,
+            3
+        ],
+        "feature_cols": [
+            "pressure",
+            "flow_rate",
+            "temperature"
+        ],
+        "y_train_range": [
+            0.0,
+            100.0
+        ]
+    }
+}

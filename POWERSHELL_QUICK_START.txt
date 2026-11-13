@@ -1,0 +1,145 @@
+================================================================================
+POWERSHELL QUICK START GUIDE
+Aircraft Predictive Maintenance System
+================================================================================
+
+You're using PowerShell? No problem! Just use these commands:
+
+================================================================================
+OPTION 1: COPY-PASTE ALL AT ONCE
+================================================================================
+
+Copy this entire block and paste it into PowerShell:
+
+cd D:\final\AircraftPredictiveMaintenance
+.\setup.bat
+.\venv\Scripts\Activate.ps1
+python training\train_all.py
+streamlit run dashboard\app.py
+
+Done! Browser will open automatically.
+
+================================================================================
+OPTION 2: RUN ONE COMMAND AT A TIME
+================================================================================
+
+STEP 1: Navigate to project
+───────────────────────────
+cd D:\final\AircraftPredictiveMaintenance
+
+STEP 2: Setup environment (2-3 minutes)
+────────────────────────────────────────
+.\setup.bat
+
+Wait for: "Setup Complete!"
+
+STEP 3: Activate virtual environment
+──────────────────────────────────────
+.\venv\Scripts\Activate.ps1
+
+You should see (venv) in your prompt
+
+STEP 4: Train models (5-7 minutes)
+──────────────────────────────────
+python training\train_all.py
+
+Wait for: "TRAINING COMPLETED SUCCESSFULLY"
+
+STEP 5: Launch dashboard (opens automatically)
+──────────────────────────────────────────────
+streamlit run dashboard\app.py
+
+Browser opens to: http://localhost:8501
+
+================================================================================
+KEY DIFFERENCES: PowerShell vs Command Prompt
+================================================================================
+
+Command Prompt (cmd.exe):
+  setup.bat
+  venv\Scripts\activate.bat
+
+PowerShell:
+  .\setup.bat                    ← Note the ".\" prefix
+  .\venv\Scripts\Activate.ps1    ← Note the ".\" prefix AND .ps1 extension
+
+Everything else is the same!
+
+================================================================================
+TROUBLESHOOTING FOR POWERSHELL
+================================================================================
+
+PROBLEM: "The term 'setup.bat' is not recognized"
+SOLUTION: Use ".\setup.bat" (add the ".\" prefix)
+
+PROBLEM: "cannot be loaded because running scripts is disabled"
+SOLUTION: Run PowerShell as Administrator, then execute:
+          Set-ExecutionPolicy -ExecutionPolicy RemoteSigned
+
+PROBLEM: Still won't run?
+SOLUTION: Use Command Prompt instead (press Win+R, type "cmd", Enter)
+
+================================================================================
+IF STUCK: SWITCH TO COMMAND PROMPT
+================================================================================
+
+PowerShell giving you trouble? Just use Command Prompt:
+
+1. Press: Windows Key + R
+2. Type: cmd
+3. Press: Enter
+4. Copy commands from RUN_INSTRUCTIONS.txt (without the ".\" prefix)
+
+The commands are the same, just without the ".\" prefix!
+
+================================================================================
+NORMAL COMMANDS (Both work the same)
+================================================================================
+
+These work in both Command Prompt AND PowerShell:
+
+python training\train_all.py
+python inference\inference.py
+python PROJECT_SUMMARY.py
+dir models\engine\
+dir data\engine\
+dir reports\
+
+No ".\" needed for these!
+
+================================================================================
+STOP/STOP DASHBOARD
+================================================================================
+
+When dashboard is running, stop it by pressing:
+
+Ctrl + C
+
+================================================================================
+NEXT TIME (Daily usage)
+================================================================================
+
+Next day, just run:
+
+cd D:\final\AircraftPredictiveMaintenance
+.\venv\Scripts\Activate.ps1
+streamlit run dashboard\app.py
+
+That's it! No need to retrain unless you add new data.
+
+================================================================================
+SUMMARY
+================================================================================
+
+PowerShell Key Rules:
+✓ Use ".\" prefix for batch files: .\setup.bat
+✓ Use ".ps1" for PowerShell scripts: .\venv\Scripts\Activate.ps1
+✓ Other commands work normally
+
+If confused: Just use Command Prompt (easier)!
+
+================================================================================
+
+Good luck! ✈️
+
+================================================================================

@@ -1,0 +1,466 @@
+=============================================================================
+AIRCRAFT PREDICTIVE MAINTENANCE SYSTEM - RUN INSTRUCTIONS
+=============================================================================
+
+📊 PROJECT STATUS: ✅ ALL DATASETS PRESENT & READY TO RUN
+
+Datasets Verified:
+✅ Engine: 12 files (FD001-FD004 train/test/RUL)
+✅ Electrical: 4 files (data/train/test_1/test_2)
+✅ Hydraulic: 4 files (data/train/test_1/test_2)
+
+Total Dataset Files: 20
+
+⚠️ IMPORTANT: Choose one terminal type and follow its specific commands:
+   • For Command Prompt (cmd.exe): Use commands as shown below
+   • For PowerShell: Use ".\" prefix - see PowerShell section
+
+=============================================================================
+QUICK START - FOR POWERSHELL USERS (YOU ARE HERE!)
+=============================================================================
+
+If you're using PowerShell, copy and paste these commands:
+
+cd D:\final\AircraftPredictiveMaintenance
+.\setup.bat
+.\venv\Scripts\Activate.ps1
+python training\train_all.py
+streamlit run dashboard\app.py
+
+Key difference: Use ".\script.bat" instead of "script.bat"
+              Use ".\venv\Scripts\Activate.ps1" instead of "venv\Scripts\activate.bat"
+
+Then skip to STEP 2 below.
+
+=============================================================================
+QUICK START (12-15 MINUTES)
+=============================================================================
+
+Follow these steps exactly:
+
+STEP 1: OPEN COMMAND PROMPT
+────────────────────────────────────────────────────────────────────────
+
+Choose one:
+
+OPTION A - Command Prompt (Recommended):
+1.1) Press: Windows Key + R
+1.2) Type: cmd
+1.3) Press: Enter
+
+OPTION B - PowerShell (Already open?):
+If you already have PowerShell open, you can use it directly.
+Commands are slightly different - see STEP 3 and STEP 4 for PowerShell syntax.
+
+
+STEP 2: NAVIGATE TO PROJECT
+────────────────────────────────────────────────────────────────────────
+
+Type these commands:
+
+cd D:\final\AircraftPredictiveMaintenance
+
+Press Enter
+
+
+STEP 3: RUN SETUP (2 minutes)
+────────────────────────────────────────────────────────────────────────
+
+For Command Prompt, type:
+
+setup.bat
+
+For PowerShell, type:
+
+.\setup.bat
+
+Press Enter
+
+Wait for completion. You should see:
+✓ Python version check... OK
+✓ Virtual environment created
+✓ Dependencies installed
+✓ Setup Complete!
+
+
+STEP 4: ACTIVATE ENVIRONMENT
+────────────────────────────────────────────────────────────────────────
+
+For Command Prompt, type:
+
+venv\Scripts\activate.bat
+
+For PowerShell, type:
+
+.\venv\Scripts\Activate.ps1
+
+Press Enter
+
+You should see (venv) in your prompt now.
+
+
+STEP 5: TRAIN MODELS (5-7 minutes)
+────────────────────────────────────────────────────────────────────────
+
+Type:
+
+python training\train_all.py
+
+Press Enter
+
+This will:
+- Load all datasets
+- Preprocess 20 files
+- Train 9 models (3 per subsystem)
+- Save models to models/ directory
+
+Wait for:
+╔════════════════════════════════════════════════════════╗
+║        TRAINING COMPLETED SUCCESSFULLY                 ║
+║                                                        ║
+║  Total Time: 5m 23s                                    ║
+║                                                        ║
+║  All models saved to:                                  ║
+║  - models/engine/     (9 files)                        ║
+║  - models/electrical/ (6 files)                        ║
+║  - models/hydraulic/  (6 files)                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+STEP 6: VERIFY MODELS TRAINED
+────────────────────────────────────────────────────────────────────────
+
+Type:
+
+dir models\engine\
+
+You should see files like:
+✓ autoencoder_FD001.h5
+✓ autoencoder_FD002.h5
+✓ autoencoder_FD003.h5
+✓ autoencoder_FD004.h5
+✓ lstm_FD001.h5
+... and more .pkl files
+
+
+STEP 7: LAUNCH DASHBOARD (Real-time)
+────────────────────────────────────────────────────────────────────────
+
+Type:
+
+streamlit run dashboard\app.py
+
+Press Enter
+
+Browser will automatically open to: http://localhost:8501
+
+You should see:
+✓ Dashboard with 5 tabs:
+  - Aircraft Overview
+  - Engine Diagnostics
+  - Electrical Diagnostics
+  - Hydraulic Diagnostics
+  - Maintenance Guidance
+
+✓ Health metrics displayed
+✓ Real-time charts
+✓ Maintenance recommendations
+
+
+=============================================================================
+DASHBOARD FEATURES (WHAT YOU CAN DO NOW)
+=============================================================================
+
+TAB 1: AIRCRAFT OVERVIEW
+- Overall health score (0-100)
+- Overall risk level (Critical/High/Medium/Low)
+- Priority subsystem to focus on
+- Bar chart of subsystem health
+- Ranked subsystems by criticality
+- Maintenance recommendations
+
+TAB 2: ENGINE DIAGNOSTICS
+- Engine health status
+- Current fault classification
+- Remaining Useful Life (RUL) prediction
+- Anomaly detection results
+- Detailed metrics
+
+TAB 3: ELECTRICAL DIAGNOSTICS
+- Electrical system health
+- Voltage and power metrics
+- Battery status
+- System recommendations
+
+TAB 4: HYDRAULIC DIAGNOSTICS
+- Hydraulic system health
+- Pressure analysis
+- Flow metrics
+- Pump status
+
+TAB 5: MAINTENANCE GUIDANCE
+- Search for specific faults
+- Get causes and procedures
+- Spare parts information
+- Safety considerations
+
+
+=============================================================================
+STOPPING THE DASHBOARD
+=============================================================================
+
+To stop the dashboard:
+
+Press: Ctrl + C
+
+This stops the Streamlit server.
+
+
+=============================================================================
+OPTIONAL: GENERATE REPORTS
+=============================================================================
+
+To generate PDF and text reports:
+
+Type:
+
+python inference\inference.py
+
+This will:
+1. Run diagnostics on sample data
+2. Generate PDF report: reports/Maintenance_Report_*.pdf
+3. Generate text report: reports/Summary_Report_*.txt
+
+Check results:
+
+dir reports\
+
+
+=============================================================================
+DEACTIVATE VIRTUAL ENVIRONMENT (When done)
+=============================================================================
+
+When finished, type:
+
+deactivate
+
+This exits the virtual environment.
+
+
+=============================================================================
+TIMELINE
+=============================================================================
+
+Total time from start to working dashboard: 12-15 MINUTES
+
+Step 1 (Command Prompt):         <1 min
+Step 2 (Navigate):               <1 min
+Step 3 (Setup):                  2-3 min
+Step 4 (Activate):               <1 min
+Step 5 (Train):                  5-7 min ⏳ LONGEST STEP
+Step 6 (Verify):                 <1 min
+Step 7 (Dashboard):              <1 min
+
+TOTAL:                            12-15 min
+
+
+=============================================================================
+MONITORING YOUR SYSTEM DAILY
+=============================================================================
+
+Day 1 and onwards:
+
+1. Open command prompt
+2. Navigate to project
+3. Type: venv\Scripts\activate.bat
+4. Type: streamlit run dashboard\app.py
+5. Monitor health metrics
+6. Check recommendations
+7. Press Ctrl+C to stop
+
+
+=============================================================================
+RETRAINING MODELS (Optional - Monthly/Quarterly)
+=============================================================================
+
+If you add new data to data/ directories:
+
+1. Activate environment: venv\Scripts\activate.bat
+2. Retrain: python training\train_all.py
+3. Restart dashboard: streamlit run dashboard\app.py
+
+Models will automatically improve with new data.
+
+
+=============================================================================
+TROUBLESHOOTING
+=============================================================================
+
+PROBLEM: "Python not found"
+SOLUTION:
+- Install Python 3.10+ from https://www.python.org
+- Important: Check "Add to PATH" during installation
+- Restart command prompt
+
+PROBLEM: setup.bat fails
+SOLUTION:
+- Delete venv folder: rmdir /S venv
+- Retry: setup.bat
+
+PROBLEM: "Models not found" when running dashboard
+SOLUTION:
+- Models need to be trained first
+- Run: python training\train_all.py
+- Wait for completion
+- Then: streamlit run dashboard\app.py
+
+PROBLEM: Training takes too long / Out of memory
+SOLUTION:
+- Edit: config\config.py
+- Change: EPOCHS = 20 (was 50)
+- Change: BATCH_SIZE = 64 (was 32)
+- Retrain: python training\train_all.py
+
+PROBLEM: Dashboard won't start
+SOLUTION:
+- Press Ctrl+C to stop current process
+- Clear cache: rmdir .streamlit\cache
+- Retry: streamlit run dashboard\app.py
+
+PROBLEM: Files not found error
+SOLUTION:
+- Verify dataset files exist: dir data\engine\
+- Check all 20 files are there
+- Filenames must be exactly: FD001_train.txt, etc.
+
+
+=============================================================================
+FILE VERIFICATION
+=============================================================================
+
+After each step, verify files exist:
+
+AFTER SETUP:
+- venv\ folder should exist
+- venv\Scripts\python.exe should exist
+- venv\Scripts\pip.exe should exist
+
+AFTER TRAINING:
+- models\engine\ should have .h5 and .pkl files
+- models\electrical\ should have .h5 and .pkl files
+- models\hydraulic\ should have .h5 and .pkl files
+
+AFTER INFERENCE:
+- reports\ should have .pdf and .txt files
+
+
+=============================================================================
+QUICK COMMANDS - COMMAND PROMPT (cmd.exe)
+=============================================================================
+
+# Full sequence (copy-paste all at once):
+
+cd D:\final\AircraftPredictiveMaintenance
+setup.bat
+venv\Scripts\activate.bat
+python training\train_all.py
+streamlit run dashboard\app.py
+
+# Or run them one by one as shown in QUICK START section
+
+
+=============================================================================
+QUICK COMMANDS - POWERSHELL (Use if you have PowerShell open)
+=============================================================================
+
+# Full sequence (copy-paste all at once):
+
+cd D:\final\AircraftPredictiveMaintenance
+.\setup.bat
+.\venv\Scripts\Activate.ps1
+python training\train_all.py
+streamlit run dashboard\app.py
+
+# Key differences for PowerShell:
+# 1. Use ".\" prefix for batch scripts: .\setup.bat (NOT setup.bat)
+# 2. Activate with: .\venv\Scripts\Activate.ps1 (NOT venv\Scripts\activate.bat)
+# 3. Rest of commands are the same
+
+
+=============================================================================
+SYSTEM REQUIREMENTS
+=============================================================================
+
+Minimum:
+- Windows OS
+- Python 3.10+
+- 4 GB RAM
+- 500 MB free disk space
+
+Recommended:
+- Windows 10/11
+- Python 3.10+
+- 8+ GB RAM
+- 1 GB free disk space
+- Multi-core CPU
+
+
+=============================================================================
+WHAT THE SYSTEM DOES
+=============================================================================
+
+This Aircraft Predictive Maintenance System:
+
+1. MONITORS: Real-time aircraft health status
+2. PREDICTS: Remaining useful life of components
+3. DETECTS: Anomalies in sensor data
+4. CLASSIFIES: Fault types
+5. RECOMMENDS: Maintenance actions
+6. GENERATES: Professional reports
+
+All powered by 9 trained machine learning models using:
+- Deep Learning (Autoencoders, LSTM)
+- Traditional ML (Random Forests)
+- RAG Knowledge Base
+
+Multi-agent architecture ensures:
+- Independent subsystem analysis (Engine, Electrical, Hydraulic)
+- Coordinated overall assessment
+- Actionable recommendations
+
+
+=============================================================================
+SUPPORT & MORE INFO
+=============================================================================
+
+For detailed information, see:
+- README.md - Complete system guide
+- PROJECT_ANALYSIS.md - Full analysis
+- QUICKSTART.md - 5-minute setup
+- PROJECT_MANIFEST.json - System blueprint
+
+
+=============================================================================
+SUCCESS!
+=============================================================================
+
+When you see the dashboard with health metrics and recommendations:
+
+✅ System is operational
+✅ Models are trained and working
+✅ All 9 models are making predictions
+✅ All 5 agents are coordinating
+✅ Real-time monitoring is active
+
+You are ready to use the system!
+
+
+=============================================================================
+
+START HERE: Follow the QUICK START section above (12-15 minutes)
+
+Questions? Check the TROUBLESHOOTING section above.
+
+Good luck with your Aircraft Predictive Maintenance System! ✈️
+
+=============================================================================
