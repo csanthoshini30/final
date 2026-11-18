@@ -1,8 +1,9 @@
-"""Resolve local model artifacts or download them from the private Hub repo."""
+"""Resolve model artifacts and handle Keras model-format compatibility."""
 
 import os
 from pathlib import Path
 
+import tensorflow as tf
 from huggingface_hub import hf_hub_download
 from huggingface_hub.errors import (
     EntryNotFoundError,
@@ -17,6 +18,28 @@ MODEL_REPO_ID = "Santhoshini30/aircraft-predictive-maintenance-models"
 
 class ModelArtifactError(RuntimeError):
     """Raised when a required model artifact cannot be resolved."""
+
+
+class _CompatibleDense(tf.keras.layers.Dense):
+    """Load Dense configs saved by newer Keras versions in older runtimes."""
+
+    @classmethod
+    def from_config(cls, config):
+        # Newer Keras serializes this field for quantization. It is not a
+        # Dense constructor argument in the TensorFlow/Keras version deployed
+        # by this app, and the stored models are not quantized.
+        config = dict(config)
+        config.pop("quantization_config", None)
+        return super().from_config(config)
+
+
+# Models in the Hub were saved with a newer Keras version which writes
+# ``quantization_config: None`` into Dense layer configs. Register this small
+# compatibility shim before any agent calls tf.keras.models.load_model().
+tf.keras.utils.get_custom_objects().update({
+    "Dense": _CompatibleDense,
+    "keras.layers>Dense": _CompatibleDense,
+})
 
 
 def _get_hf_token():
