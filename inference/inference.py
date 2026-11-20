@@ -3,6 +3,7 @@ Inference Pipeline - Make Predictions on New Data
 """
 import sys
 import pickle
+import json
 from io import BytesIO
 from pathlib import Path
 import numpy as np
@@ -116,6 +117,18 @@ def run_subsystem_inference(system_type, source, filename, engine_dataset="FD003
             lstm_values = None
 
         rul_values = agent.predict_rul(sequences)
+        if system_type == "engine":
+            metrics_path = PROJECT_ROOT / "models" / "engine" / "training_metrics.json"
+            with metrics_path.open("r", encoding="utf-8") as metrics_file:
+                training_metrics = json.load(metrics_file)
+            max_training_rul = training_metrics[engine_dataset]["y_train_range"][1]
+            if max_training_rul <= 0:
+                raise ValueError("Invalid maximum training RUL reference.")
+            health_values = np.clip(
+                np.asarray(rul_values, dtype=float).reshape(-1) / max_training_rul * 100.0,
+                0.0,
+                100.0,
+            )
         anomaly_flags, anomaly_scores = agent.detect_anomalies(sequences)
         fault_ids, fault_probabilities = agent.classify_fault(sequences[-1:])
         if rul_values is None or anomaly_flags is None or fault_ids is None:

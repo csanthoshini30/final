@@ -14,24 +14,17 @@ import os
 from io import BytesIO
 import base64
 import hashlib
-
+from pypdf import PdfReader
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from agents.engine_agent import EngineAgent
+from inference.inference import run_subsystem_inference
 from agents.electrical_agent import ElectricalAgent
 from agents.hydraulic_agent import HydraulicAgent
 from agents.coordinator_agent import CoordinatorAgent
 from agents.rag_agent import RAGMaintenanceAgent
-
-# For RAG chatbot capabilities
-try:
-    from langchain.document_loaders import PyPDFLoader
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
-    LANGCHAIN_AVAILABLE = True
-except:
-    LANGCHAIN_AVAILABLE = False
 
 # For PDF generation
 try:
@@ -802,11 +795,9 @@ def get_available_files(system_type):
 def load_rag_manual():
     """Load the maintenance manual for RAG chatbot"""
     manual_path = PROJECT_ROOT / "data" / "Damage Propagation Modeling.pdf"
-    if manual_path.exists() and LANGCHAIN_AVAILABLE:
+    if manual_path.exists():
         try:
-            loader = PyPDFLoader(str(manual_path))
-            docs = loader.load()
-            return docs
+            return [page.extract_text() or "" for page in PdfReader(str(manual_path)).pages]
         except:
             return None
     return None
@@ -907,16 +898,10 @@ def get_status_badge(health_score):
 @st.cache_resource
 def load_pdf_knowledge_base():
     """Load and cache the Damage Propagation Modeling PDF"""
-    if not LANGCHAIN_AVAILABLE:
-        return None
-
     manual_path = PROJECT_ROOT / "data" / "Damage Propagation Modeling.pdf"
     if manual_path.exists():
         try:
-            from langchain.document_loaders import PyPDFLoader
-            loader = PyPDFLoader(str(manual_path))
-            docs = loader.load()
-            return docs
+            return [page.extract_text() or "" for page in PdfReader(str(manual_path)).pages]
         except Exception as e:
             # Silent fail - use fallback
             return None
@@ -927,26 +912,20 @@ def get_rag_response(question):
     question_lower = question.lower()
 
     # Try to load PDF knowledge base only if available
-    if LANGCHAIN_AVAILABLE:
-        try:
-            pdf_docs = load_pdf_knowledge_base()
-            if pdf_docs:
-                # Search through PDF content for relevant passages
-                relevant_passages = []
-                for doc in pdf_docs:
-                    page_content = doc.page_content.lower()
-                    if any(keyword in page_content for keyword in question_lower.split()):
-                        relevant_passages.append(doc.page_content)
-
-                if relevant_passages:
-                    # Return combined relevant passages from PDF
-                    response = " ".join(relevant_passages[:2])  # Combine top 2 relevant passages
-                    if len(response) > 500:
-                        response = response[:500] + "..."
-                    return response if response.strip() else "Refer to the Damage Propagation Modeling manual for detailed maintenance procedures."
-        except Exception as e:
-            # Silent fail - use fallback
-            pass
+    try:
+        pdf_docs = load_pdf_knowledge_base()
+        if pdf_docs:
+            relevant_passages = [
+                page for page in pdf_docs
+                if any(keyword in page.lower() for keyword in question_lower.split())
+            ]
+            if relevant_passages:
+                response = " ".join(relevant_passages[:2])
+                if len(response) > 500:
+                    response = response[:500] + "..."
+                return response if response.strip() else "Refer to the Damage Propagation Modeling manual for detailed maintenance procedures."
+    except Exception as e:
+        st.error(f"The maintenance manual could not be read: {e}")
 
     # Fallback to keyword-based responses
     knowledge_base = {
@@ -1184,7 +1163,7 @@ def generate_pdf_report(system_name, health_score, rul, trend, dataset_name, com
         st.error(f"Error generating PDF: {e}")
         return None
 
-def main():
+def _legacy_dashboard_main():
     """Main dashboard application with premium futuristic UI"""
 
     # Premium header with glassmorphism
@@ -1361,158 +1340,211 @@ def main():
                 st.markdown("---")
 
         engine_file = st.session_state.selected_files.get('engine')
+
         if engine_file:
-            engine_context = get_file_analysis_context("engine", engine_file)
-            health = engine_context['health_base']
-            rul = int((health/100)*3000)
+            # Run inference only after the sidebar Analyze button is clicked
+            if st.session_state.analysis_results.get('engine') == 'running':
+                engine_dataset = Path(engine_file).stem.split('_')[0]
+                engine_path = PROJECT_ROOT / "data" / "engine" / engine_file
 
-            # Header
-            st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
-                    <h2 style="color: #ffffff; margin: 0 0 0.5rem 0; font-family: 'Times New Roman', serif;">🔧 ENGINE SYSTEM ANALYSIS</h2>
-                    <p style="color: #999999; margin: 0; font-size: 14px; font-family: 'Times New Roman', serif;">{engine_context['name']} | {engine_context['description']}</p>
-                </div>
-            """, unsafe_allow_html=True)
+                try:
+                    with st.spinner("Running trained Engine prediction..."):
+                        result = run_subsystem_inference(
+                            system_type="engine",
+                            source=str(engine_path),
+                            filename=engine_file,
+                            engine_dataset=engine_dataset
+                        )
 
-            # Key Predictions Section
-            st.markdown("<h3 style='color: #000000; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);'>📊 PREDICTION RESULTS</h3>", unsafe_allow_html=True)
+                    st.session_state.analysis_results['engine'] = {
+                        "status": "complete",
+                        "filename": engine_file,
+                        "result": result
+                    }
 
-            col1, col2, col3, col4 = st.columns(4)
+                except Exception as error:
+                    st.session_state.analysis_results['engine'] = {
+                        "status": "error",
+                        "filename": engine_file,
+                        "message": str(error)
+                    }
 
-            with col1:
-                # Health prediction
-                color = "#ffffff" if health >= 75 else "#ffffff" if health >= 60 else "#ffffff"
-                status_text = "EXCELLENT" if health >= 75 else "FAIR" if health >= 60 else "POOR"
-                bg_color = "rgba(0, 0, 0, 0.4)" if health >= 75 else "rgba(0, 0, 0, 0.4)" if health >= 60 else "rgba(0, 0, 0, 0.4)"
-                border_color = "rgba(255, 255, 255, 0.2)" if health >= 75 else "rgba(255, 255, 255, 0.2)" if health >= 60 else "rgba(255, 255, 255, 0.2)"
+            engine_analysis = st.session_state.analysis_results.get('engine')
+
+            if (
+                isinstance(engine_analysis, dict)
+                and engine_analysis.get("filename") == engine_file
+                and engine_analysis.get("status") == "complete"
+            ):
+                engine_result = engine_analysis["result"]
+                engine_context = get_file_analysis_context("engine", engine_file)
+
+                # RUL-based indicator, not certified physical engine health
+                health = float(engine_result["health_score"])
+                rul = float(engine_result["rul"])
+                engine_context["trend"] = "declining" if health < 33 else "stable"
+
+            elif (
+                isinstance(engine_analysis, dict)
+                and engine_analysis.get("filename") == engine_file
+                and engine_analysis.get("status") == "error"
+            ):
+                st.error("Engine inference failed: " + engine_analysis["message"])
+            else:
+                st.info("Click Analyze in the sidebar to run the trained Engine model.")
+
+            if (
+                isinstance(engine_analysis, dict)
+                and engine_analysis.get("filename") == engine_file
+                and engine_analysis.get("status") == "complete"
+            ):
+                # Header
                 st.markdown(f"""
-                    <div style="background: {bg_color}; backdrop-filter: blur(12px); border: 1px solid {border_color}; border-radius: 12px; padding: 2rem; text-align: center;">
-                        <p style="color: {color}; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">Predicted Health Status</p>
-                        <h3 style="color: {color}; margin: 0.8rem 0 0; font-size: 36px; font-weight: bold; font-family: 'Times New Roman', serif; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);">{health}%</h3>
-                        <p style="color: {color}; margin: 0.5rem 0 0; font-size: 12px; font-weight: 600; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">{status_text}</p>
+                    <div style="background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+                        <h2 style="color: #ffffff; margin: 0 0 0.5rem 0; font-family: 'Times New Roman', serif;">🔧 ENGINE SYSTEM ANALYSIS</h2>
+                        <p style="color: #999999; margin: 0; font-size: 14px; font-family: 'Times New Roman', serif;">{engine_context['name']} | {engine_context['description']}</p>
                     </div>
                 """, unsafe_allow_html=True)
 
-            with col2:
-                # RUL Prediction
-                st.markdown(f"""
-                    <div style="background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 2rem; text-align: center;">
-                        <p style="color: #ffffff; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">Remaining Useful Life</p>
-                        <h3 style="color: #ffffff; margin: 0.8rem 0 0; font-size: 36px; font-weight: bold; font-family: 'Times New Roman', serif; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);">{rul:,}</h3>
-                        <p style="color: #ffffff; margin: 0.5rem 0 0; font-size: 12px; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">Operating Hours</p>
-                    </div>
-                """, unsafe_allow_html=True)
+                # Key Predictions Section
+                st.markdown("<h3 style='color: #000000; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);'>📊 PREDICTION RESULTS</h3>", unsafe_allow_html=True)
 
-            with col3:
-                # Trend Prediction
-                trend_icon = "📈" if engine_context["trend"] == "stable" else "📉"
-                trend_text = "STABLE" if engine_context["trend"] == "stable" else "DECLINING"
-                st.markdown(f"""
-                    <div style="background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 2rem; text-align: center;">
-                        <p style="color: #ffffff; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">Trend Prediction</p>
-                        <h3 style="color: #ffffff; margin: 0.8rem 0 0; font-size: 36px; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);">{trend_icon}</h3>
-                        <p style="color: #ffffff; margin: 0.5rem 0 0; font-size: 12px; font-weight: 600; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">{trend_text}</p>
-                    </div>
-                """, unsafe_allow_html=True)
+                col1, col2, col3, col4 = st.columns(4)
 
-            with col4:
-                # Maintenance Action
-                if health < 60:
-                    action = "URGENT"
-                elif health < 75:
-                    action = "SCHEDULE"
-                else:
-                    action = "MONITOR"
-
-                st.markdown(f"""
-                    <div style="background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 2rem; text-align: center;">
-                        <p style="color: #ffffff; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">Recommended Action</p>
-                        <h3 style="color: #ffffff; margin: 0.8rem 0 0; font-size: 32px; font-weight: bold; font-family: 'Times New Roman', serif; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);">{action}</h3>
-                        <p style="color: #ffffff; margin: 0.5rem 0 0; font-size: 12px; font-weight: 600; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">Maintenance</p>
-                    </div>
-                """, unsafe_allow_html=True)
-
-            st.divider()
-
-            # Detailed Predictions - Enhanced white space
-            st.markdown("<h3 style='color: #000000; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);'>🎯 DETAILED PREDICTIONS</h3>", unsafe_allow_html=True)
-            st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.markdown(f"""
-                    <div style='background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1.5rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2);'>
-                        <p style='font-family: "Times New Roman", serif; color: #ffffff; font-size: 14px; margin: 0 0 1rem 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
-                            <strong>Health Score Breakdown:</strong>
-                        </p>
-                        <ul style='font-family: "Times New Roman", serif; color: #ffffff; margin: 0; padding-left: 1.5rem; line-height: 1.8; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
-                            <li>Combustion Efficiency: 87%</li>
-                            <li>Sensor Readings: 92%</li>
-                            <li>Valve Response: 78%</li>
-                            <li>Temperature: 82%</li>
-                            <li>Vibration: 75%</li>
-                        </ul>
-                        <p style='font-family: "Times New Roman", serif; color: #ffffff; font-size: 13px; margin: 1rem 0 0 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
-                            <strong>Predictive Confidence: 94%</strong><br/>
-                            <em>Based on LSTM + Autoencoder analysis</em>
-                        </p>
-                    </div>
-                """, unsafe_allow_html=True)
-
-            with col2:
-                st.markdown(f"""
-                    <div style='background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1.5rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2);'>
-                        <p style='font-family: "Times New Roman", serif; color: #ffffff; font-size: 14px; margin: 0 0 1rem 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
-                            <strong>Prediction Details:</strong>
-                        </p>
-                        <div style='font-family: "Times New Roman", serif; color: #ffffff; line-height: 1.8; font-size: 13px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
-                            <p style='margin: 0;'><strong>Dataset:</strong> {engine_context['name']}</p>
-                            <p style='margin: 0.5rem 0;'><strong>Analysis Type:</strong> {engine_context['focus']}</p>
-                            <p style='margin: 0.5rem 0;'><strong>Samples Analyzed:</strong> 192</p>
-                            <p style='margin: 0.5rem 0;'><strong>Models Used:</strong> LSTM + Autoencoder</p>
-                            <p style='margin: 0.5rem 0;'><strong>Confidence Interval:</strong> ±5%</p>
+                with col1:
+                    # Health prediction
+                    color = "#ffffff" if health >= 75 else "#ffffff" if health >= 60 else "#ffffff"
+                    status_text = "EXCELLENT" if health >= 75 else "FAIR" if health >= 60 else "POOR"
+                    bg_color = "rgba(0, 0, 0, 0.4)" if health >= 75 else "rgba(0, 0, 0, 0.4)" if health >= 60 else "rgba(0, 0, 0, 0.4)"
+                    border_color = "rgba(255, 255, 255, 0.2)" if health >= 75 else "rgba(255, 255, 255, 0.2)" if health >= 60 else "rgba(255, 255, 255, 0.2)"
+                    st.markdown(f"""
+                        <div style="background: {bg_color}; backdrop-filter: blur(12px); border: 1px solid {border_color}; border-radius: 12px; padding: 2rem; text-align: center;">
+                            <p style="color: {color}; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">RUL-Based Life Indicator</p>
+                            <h3 style="color: {color}; margin: 0.8rem 0 0; font-size: 36px; font-weight: bold; font-family: 'Times New Roman', serif; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);">{health}%</h3>
+                            <p style="color: {color}; margin: 0.5rem 0 0; font-size: 12px; font-weight: 600; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">{status_text}</p>
                         </div>
-                        <p style='font-family: "Times New Roman", serif; color: #ffffff; font-size: 13px; margin: 1rem 0 0 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
-                            <strong>Next Service:</strong><br/>
-                            In {max(0, 100 - health)} days | ~$2,500 | 4-6 hrs downtime
-                        </p>
-                    </div>
+                    """, unsafe_allow_html=True)
+
+                with col2:
+                    # RUL Prediction
+                    st.markdown(f"""
+                        <div style="background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 2rem; text-align: center;">
+                            <p style="color: #ffffff; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">Remaining Useful Life</p>
+                            <h3 style="color: #ffffff; margin: 0.8rem 0 0; font-size: 36px; font-weight: bold; font-family: 'Times New Roman', serif; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);">{rul:,}</h3>
+                            <p style="color: #ffffff; margin: 0.5rem 0 0; font-size: 12px; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">Cycles (model estimate)</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                with col3:
+                    # Trend Prediction
+                    trend_icon = "📈" if engine_context["trend"] == "stable" else "📉"
+                    trend_text = "STABLE" if engine_context["trend"] == "stable" else "DECLINING"
+                    st.markdown(f"""
+                        <div style="background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 2rem; text-align: center;">
+                            <p style="color: #ffffff; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">Trend Prediction</p>
+                            <h3 style="color: #ffffff; margin: 0.8rem 0 0; font-size: 36px; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);">{trend_icon}</h3>
+                            <p style="color: #ffffff; margin: 0.5rem 0 0; font-size: 12px; font-weight: 600; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">{trend_text}</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                with col4:
+                    # Maintenance Action
+                    if health < 60:
+                        action = "URGENT"
+                    elif health < 75:
+                        action = "SCHEDULE"
+                    else:
+                        action = "MONITOR"
+
+                    st.markdown(f"""
+                        <div style="background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 2rem; text-align: center;">
+                            <p style="color: #ffffff; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">Recommended Action</p>
+                            <h3 style="color: #ffffff; margin: 0.8rem 0 0; font-size: 32px; font-weight: bold; font-family: 'Times New Roman', serif; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);">{action}</h3>
+                            <p style="color: #ffffff; margin: 0.5rem 0 0; font-size: 12px; font-weight: 600; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">Maintenance</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                st.divider()
+
+                # Detailed Predictions - Enhanced white space
+                st.markdown("<h3 style='color: #000000; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);'>🎯 DETAILED PREDICTIONS</h3>", unsafe_allow_html=True)
+                st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.markdown(f"""
+                        <div style='background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1.5rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2);'>
+                            <p style='font-family: "Times New Roman", serif; color: #ffffff; font-size: 14px; margin: 0 0 1rem 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
+                                <strong>Health Score Breakdown:</strong>
+                            </p>
+                            <ul style='font-family: "Times New Roman", serif; color: #ffffff; margin: 0; padding-left: 1.5rem; line-height: 1.8; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
+                                <li>Combustion Efficiency: 87%</li>
+                                <li>Sensor Readings: 92%</li>
+                                <li>Valve Response: 78%</li>
+                                <li>Temperature: 82%</li>
+                                <li>Vibration: 75%</li>
+                            </ul>
+                            <p style='font-family: "Times New Roman", serif; color: #ffffff; font-size: 13px; margin: 1rem 0 0 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
+                                <strong>Predictive Confidence: 94%</strong><br/>
+                                <em>Based on LSTM + Autoencoder analysis</em>
+                            </p>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                with col2:
+                    st.markdown(f"""
+                        <div style='background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1.5rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2);'>
+                            <p style='font-family: "Times New Roman", serif; color: #ffffff; font-size: 14px; margin: 0 0 1rem 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
+                                <strong>Prediction Details:</strong>
+                            </p>
+                            <div style='font-family: "Times New Roman", serif; color: #ffffff; line-height: 1.8; font-size: 13px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
+                                <p style='margin: 0;'><strong>Dataset:</strong> {engine_context['name']}</p>
+                                <p style='margin: 0.5rem 0;'><strong>Analysis Type:</strong> {engine_context['focus']}</p>
+                                <p style='margin: 0.5rem 0;'><strong>Samples Analyzed:</strong> 192</p>
+                                <p style='margin: 0.5rem 0;'><strong>Models Used:</strong> LSTM + Autoencoder</p>
+                                <p style='margin: 0.5rem 0;'><strong>Confidence Interval:</strong> ±5%</p>
+                            </div>
+                            <p style='font-family: "Times New Roman", serif; color: #ffffff; font-size: 13px; margin: 1rem 0 0 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);'>
+                                <strong>Next Service:</strong><br/>
+                                In {max(0, 100 - health)} days | ~$2,500 | 4-6 hrs downtime
+                            </p>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
+
+                st.divider()
+
+                # Risk Assessment - Enhanced styling
+                st.markdown("<h3 style='color: #000000; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);'>⚠️ RISK ASSESSMENT</h3>", unsafe_allow_html=True)
+                st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
+
+                st.markdown("""
+                    <div style='background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1.5rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2);'>
                 """, unsafe_allow_html=True)
 
-            st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
+                risk_data = {
+                    "Failure Risk (Next 30 days)": 8,
+                    "Maintenance Urgency": 45 if health > 75 else 65,
+                    "Component Wear": 62,
+                    "Operational Safety": 88
+                }
 
-            st.divider()
-
-            # Risk Assessment - Enhanced styling
-            st.markdown("<h3 style='color: #000000; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);'>⚠️ RISK ASSESSMENT</h3>", unsafe_allow_html=True)
-            st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
-
-            st.markdown("""
-                <div style='background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); padding: 1.5rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2);'>
-            """, unsafe_allow_html=True)
-
-            risk_data = {
-                "Failure Risk (Next 30 days)": 8,
-                "Maintenance Urgency": 45 if health > 75 else 65,
-                "Component Wear": 62,
-                "Operational Safety": 88
-            }
-
-            for risk_name, risk_score in risk_data.items():
-                color = "#388e3c" if risk_score >= 80 else "#1976d2" if risk_score >= 60 else "#f57f17" if risk_score >= 40 else "#d32f2f"
-                st.markdown(f"""
-                    <div style="margin-bottom: 1.5rem;">
-                        <p style="margin: 0 0 0.5rem 0; color: #ffffff; font-size: 13px; font-weight: 600; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">{risk_name}</p>
-                        <div style="background: rgba(0, 0, 0, 0.3); border-radius: 8px; overflow: hidden; height: 28px;">
-                            <div style="background: {color}; width: {risk_score}%; height: 100%; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; transition: width 0.3s ease;">
-                                <span style="color: white; font-size: 12px; font-weight: 600; font-family: 'Times New Roman', serif;">{risk_score}%</span>
+                for risk_name, risk_score in risk_data.items():
+                    color = "#388e3c" if risk_score >= 80 else "#1976d2" if risk_score >= 60 else "#f57f17" if risk_score >= 40 else "#d32f2f"
+                    st.markdown(f"""
+                        <div style="margin-bottom: 1.5rem;">
+                            <p style="margin: 0 0 0.5rem 0; color: #ffffff; font-size: 13px; font-weight: 600; font-family: 'Times New Roman', serif; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);">{risk_name}</p>
+                            <div style="background: rgba(0, 0, 0, 0.3); border-radius: 8px; overflow: hidden; height: 28px;">
+                                <div style="background: {color}; width: {risk_score}%; height: 100%; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; transition: width 0.3s ease;">
+                                    <span style="color: white; font-size: 12px; font-weight: 600; font-family: 'Times New Roman', serif;">{risk_score}%</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
 
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.info("👈 Select an engine dataset from the sidebar")
 
@@ -1843,6 +1875,12 @@ def main():
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-if __name__ == "__main__":
+def main():
+    """Run the model-backed dashboard with the premium theme loaded above."""
     from dashboard.runtime_dashboard import main as runtime_main
-    runtime_main(configure_page=False)
+
+    return runtime_main(configure_page=False)
+
+
+if __name__ == "__main__":
+    main()
