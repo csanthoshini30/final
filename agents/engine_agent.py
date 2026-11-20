@@ -1,12 +1,28 @@
+
 """
 Engine Agent - Engine Health Monitoring and Diagnostics
 """
+
 import numpy as np
 import pickle
-import tensorflow as tf
-from config.config import ENGINE_MODELS_DIR, HEALTH_CRITICAL, HEALTH_WARNING, HEALTH_GOOD
-from config.config import RISK_HIGH, RISK_MEDIUM, RISK_LOW, RISK_NORMAL
-from models.hub_loader import ModelArtifactError, resolve_model_path
+
+from config.config import (
+    ENGINE_MODELS_DIR,
+    HEALTH_CRITICAL,
+    HEALTH_WARNING,
+    HEALTH_GOOD,
+    RISK_HIGH,
+    RISK_MEDIUM,
+    RISK_LOW,
+    RISK_NORMAL,
+)
+
+from models.hub_loader import (
+    ModelArtifactError,
+    load_compatible_keras_model,
+    resolve_model_path,
+)
+
 
 class EngineAgent:
     """Engine subsystem monitoring agent"""
@@ -19,112 +35,164 @@ class EngineAgent:
         self.load_models()
 
     def load_models(self):
-        """Load trained models"""
+        """Load trained models from local storage or Hugging Face."""
+
         try:
-            # Load autoencoder
-            ae_path = resolve_model_path(self.models_dir, f"autoencoder_{self.dataset_name}.h5")
-            self.models['autoencoder'] = tf.keras.models.load_model(str(ae_path), compile=False)
+            ae_path = resolve_model_path(
+                self.models_dir,
+                f"autoencoder_{self.dataset_name}.h5"
+            )
+            self.models['autoencoder'] = load_compatible_keras_model(ae_path)
 
-            # Load LSTM
-            lstm_path = resolve_model_path(self.models_dir, f"lstm_{self.dataset_name}.h5")
-            self.models['lstm'] = tf.keras.models.load_model(str(lstm_path), compile=False)
+            lstm_path = resolve_model_path(
+                self.models_dir,
+                f"lstm_{self.dataset_name}.h5"
+            )
+            self.models['lstm'] = load_compatible_keras_model(lstm_path)
 
-            # Load Random Forest classifier
-            rf_clf_path = resolve_model_path(self.models_dir, f"rf_classifier_{self.dataset_name}.pkl")
+            rf_clf_path = resolve_model_path(
+                self.models_dir,
+                f"rf_classifier_{self.dataset_name}.pkl"
+            )
             with open(rf_clf_path, 'rb') as f:
                 self.models['rf_classifier'] = pickle.load(f)
 
-            # Load Random Forest RUL regressor
-            rf_rul_path = resolve_model_path(self.models_dir, f"rf_rul_{self.dataset_name}.pkl")
+            rf_rul_path = resolve_model_path(
+                self.models_dir,
+                f"rf_rul_{self.dataset_name}.pkl"
+            )
             with open(rf_rul_path, 'rb') as f:
                 self.models['rf_rul'] = pickle.load(f)
 
-            # Load scaler
-            scaler_path = resolve_model_path(self.models_dir, f"scaler_{self.dataset_name}.pkl")
+            scaler_path = resolve_model_path(
+                self.models_dir,
+                f"scaler_{self.dataset_name}.pkl"
+            )
             with open(scaler_path, 'rb') as f:
                 self.scaler = pickle.load(f)
 
             print(f"Engine models loaded from {self.dataset_name}")
+
         except ModelArtifactError:
             raise
-        except Exception as e:
-            raise RuntimeError(
-                f"Could not load engine model artifacts for {self.dataset_name}."
-            ) from e
+
+        except Exception as exc:
+            raise ModelArtifactError(
+                f"Could not load the complete engine model set for "
+                f"{self.dataset_name}: {type(exc).__name__}: {exc}"
+            ) from exc
 
     def detect_anomalies(self, X):
-        """Detect anomalies using autoencoder"""
+        """Detect anomalies using the autoencoder."""
+
         if 'autoencoder' not in self.models:
             raise RuntimeError("Engine autoencoder is not loaded.")
 
         try:
             X_pred = self.models['autoencoder'].predict(X, verbose=0)
-            mse = np.mean(np.power(X - X_pred, 2), axis=(1, 2))
+
+            mse = np.mean(
+                np.power(X - X_pred, 2),
+                axis=(1, 2)
+            )
+
             threshold = np.percentile(mse, 95)
             anomalies = mse > threshold
+
             return anomalies, mse
+
         except Exception as e:
-            raise RuntimeError("Engine anomaly detection failed.") from e
+            raise RuntimeError(
+                "Engine anomaly detection failed."
+            ) from e
 
     def predict_health(self, X):
-        """Predict health score using LSTM"""
+        """Predict health score using LSTM."""
+
         if 'lstm' not in self.models:
             raise RuntimeError("Engine LSTM is not loaded.")
 
         try:
-            health_scores = self.models['lstm'].predict(X, verbose=0)
-            # Clip to 0-100 range
-            health_scores = np.clip(health_scores, 0, 100)
-            return health_scores.flatten()
+            health_scores = self.models['lstm'].predict(
+                X,
+                verbose=0
+            )
+
+            return np.clip(
+                health_scores,
+                0,
+                100
+            ).flatten()
+
         except Exception as e:
-            raise RuntimeError("Engine LSTM prediction failed.") from e
+            raise RuntimeError(
+                "Engine LSTM prediction failed."
+            ) from e
 
     def classify_fault(self, X):
-        """Classify fault type using Random Forest"""
+        """Classify fault type using Random Forest."""
+
         if 'rf_classifier' not in self.models:
-            raise RuntimeError("Engine fault classifier is not loaded.")
+            raise RuntimeError(
+                "Engine fault classifier is not loaded."
+            )
 
         try:
-            # Reshape if necessary
             if len(X.shape) == 3:
                 X = X.reshape(X.shape[0], -1)
 
             predictions = self.models['rf_classifier'].predict(X)
-            probabilities = self.models['rf_classifier'].predict_proba(X)
+
+            probabilities = self.models[
+                'rf_classifier'
+            ].predict_proba(X)
+
             return predictions, probabilities
+
         except Exception as e:
-            raise RuntimeError("Engine fault classification failed.") from e
+            raise RuntimeError(
+                "Engine fault classification failed."
+            ) from e
 
     def predict_rul(self, X):
-        """Predict Remaining Useful Life"""
+        """Predict Remaining Useful Life in cycles."""
+
         if 'rf_rul' not in self.models:
-            raise RuntimeError("Engine RUL model is not loaded.")
+            raise RuntimeError(
+                "Engine RUL model is not loaded."
+            )
 
         try:
-            # Reshape if necessary
             if len(X.shape) == 3:
                 X = X.reshape(X.shape[0], -1)
 
-            rul = self.models['rf_rul'].predict(X)
-            # Ensure positive RUL
-            rul = np.maximum(rul, 0)
-            return rul
+            return np.maximum(
+                self.models['rf_rul'].predict(X),
+                0
+            )
+
         except Exception as e:
-            raise RuntimeError("Engine RUL prediction failed.") from e
+            raise RuntimeError(
+                "Engine RUL prediction failed."
+            ) from e
 
     def assess_risk(self, health_score):
-        """Assess risk level based on health score"""
+        """Assess risk level based on health score."""
+
         if health_score >= HEALTH_GOOD:
             return RISK_NORMAL
+
         elif health_score >= HEALTH_WARNING:
             return RISK_LOW
+
         elif health_score >= HEALTH_CRITICAL:
             return RISK_MEDIUM
-        else:
-            return RISK_HIGH
+
+        return RISK_HIGH
 
     def get_fault_name(self, fault_id):
-        """Map fault ID to fault name"""
+        """Map fault ID to fault name."""
+
         fault_map = {
             0: "Normal Operation",
             1: "Compressor Degradation",
@@ -133,10 +201,15 @@ class EngineAgent:
             4: "Seal Leakage",
             5: "Turbine Blade Erosion"
         }
-        return fault_map.get(int(fault_id), "Unknown Fault")
+
+        return fault_map.get(
+            int(fault_id),
+            "Unknown Fault"
+        )
 
     def diagnose(self, X_sequence):
-        """Complete diagnosis for engine"""
+        """Complete RUL-based diagnosis for engine."""
+
         results = {
             'subsystem': 'Engine',
             'health_score': None,
@@ -149,16 +222,38 @@ class EngineAgent:
             'status': 'Unknown'
         }
 
-        anomalies, anomaly_scores = self.detect_anomalies(X_sequence)
+        # 1. Detect engine anomalies
+        anomalies, anomaly_scores = self.detect_anomalies(
+            X_sequence
+        )
+
         results['anomaly'] = bool(anomalies[-1])
-        results['anomaly_score'] = float(anomaly_scores[-1])
+        results['anomaly_score'] = float(
+            anomaly_scores[-1]
+        )
 
-        # The engine LSTM was trained on RUL targets, not health labels.
-        fault_pred, fault_prob = self.classify_fault(X_sequence[-1:])
-        results['fault'] = self.get_fault_name(fault_pred[-1])
-        results['confidence'] = float(np.max(fault_prob[-1]) * 100)
+        # 2. Classify the engine fault
+        fault_pred, fault_prob = self.classify_fault(
+            X_sequence[-1:]
+        )
 
-        rul = self.predict_rul(X_sequence[-1:])
+        results['fault'] = self.get_fault_name(
+            fault_pred[-1]
+        )
+
+        results['confidence'] = float(
+            np.max(fault_prob[-1]) * 100
+        )
+
+        # 3. Predict Remaining Useful Life
+        # RUL is measured in cycles, not hours.
+        rul = self.predict_rul(
+            X_sequence[-1:]
+        )
+
         results['rul'] = float(rul[-1])
+
+        # The LSTM output is not treated as a health score
+        # because its training target is RUL, not health labels.
 
         return results

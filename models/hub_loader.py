@@ -1,8 +1,13 @@
-"""Resolve local model artifacts or download them from the private Hub repo."""
+"""Resolve model artifacts and load models across Keras serialization versions."""
 
+import json
 import os
+import shutil
+import tempfile
 from pathlib import Path
 
+import h5py
+import tensorflow as tf
 from huggingface_hub import hf_hub_download
 from huggingface_hub.errors import (
     EntryNotFoundError,
@@ -16,7 +21,71 @@ MODEL_REPO_ID = "Santhoshini30/aircraft-predictive-maintenance-models"
 
 
 class ModelArtifactError(RuntimeError):
-    """Raised when a required model artifact cannot be resolved."""
+    """Raised when a required model artifact cannot be resolved or loaded."""
+
+
+class _CompatibleDense(tf.keras.layers.Dense):
+    """Ignore a newer, null quantization field when deserializing Dense layers."""
+
+    @classmethod
+    def from_config(cls, config):
+        config = dict(config)
+        config.pop("quantization_config", None)
+        return super().from_config(config)
+
+
+def load_compatible_keras_model(model_path: str | Path):
+    """Load a Keras model, sanitizing newer null metadata in legacy HDF5 files."""
+    model_path = Path(model_path)
+    custom_objects = {
+        "Dense": _CompatibleDense,
+        "keras.layers>Dense": _CompatibleDense,
+    }
+    try:
+        return tf.keras.models.load_model(
+            str(model_path), compile=False, custom_objects=custom_objects
+        )
+    except (TypeError, ValueError) as original_error:
+        if "quantization_config" not in str(original_error):
+            raise
+
+    # Keras 3.0.5 rejects quantization_config even when the value is null.
+    # Sanitize a temporary copy so the cached/source model is never changed.
+    try:
+        with tempfile.TemporaryDirectory(prefix="apm-keras-") as temp_dir:
+            compatible_path = Path(temp_dir) / model_path.name
+            shutil.copyfile(model_path, compatible_path)
+            with h5py.File(compatible_path, "r+") as model_file:
+                raw_config = model_file.attrs.get("model_config")
+                if raw_config is None:
+                    raise ModelArtifactError(
+                        f"No HDF5 model configuration was found in {model_path.name}."
+                    )
+                if isinstance(raw_config, bytes):
+                    raw_config = raw_config.decode("utf-8")
+                config = json.loads(raw_config)
+
+                def remove_null_quantization_metadata(value):
+                    if isinstance(value, dict):
+                        if value.get("quantization_config", "not-null") is None:
+                            value.pop("quantization_config")
+                        for child in value.values():
+                            remove_null_quantization_metadata(child)
+                    elif isinstance(value, list):
+                        for child in value:
+                            remove_null_quantization_metadata(child)
+
+                remove_null_quantization_metadata(config)
+                del model_file.attrs["model_config"]
+                model_file.attrs["model_config"] = json.dumps(config)
+
+            return tf.keras.models.load_model(
+                str(compatible_path), compile=False, custom_objects=custom_objects
+            )
+    except Exception as exc:
+        raise ModelArtifactError(
+            f"Could not load Keras model {model_path.name} after applying the compatibility fix: {exc}"
+        ) from exc
 
 
 def _get_hf_token():
